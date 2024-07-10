@@ -5,7 +5,7 @@ cloudinary.config({
     secure: true
 })
 
-const uploadFile = async (localPath) => {
+const uploadonCloudinary = async (localPath) => {
     try{
         if(!localPath) return null;
         const uploadResult = await cloudinary.uploader.upload(localPath, {resource_type: "auto"})
@@ -17,4 +17,4 @@ const uploadFile = async (localPath) => {
     }
 }
 
-export {uploadFile}
+export {uploadonCloudinary}
