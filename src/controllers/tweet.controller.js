@@ -36,7 +36,43 @@ const getAllTweets = async(req, res) => {
         throw new ApiError(404, "username does not exists");
     }
 
-    const tweets = await Tweet.find({owner : channelUser._id});
+    const tweets = await Tweet.aggregate([
+        {
+            $match : {
+                owner : channelUser._id
+            }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes"
+            }
+        },
+        {
+            $addFields: {
+                likesCount: {
+                    $size : "$likes"
+                },
+                likedByUser: {
+                    $cond: {
+                        if:{$in:[req.user?._id, "$likes.likedBy"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                likesCount: 1,
+                likedByUser: 1,
+                content: 1
+            }
+        }
+
+    ]).toArray();
 
     return res
     .status(200)

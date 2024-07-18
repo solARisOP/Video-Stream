@@ -17,25 +17,18 @@ const likeSchema = new mongoose.Schema({
     likedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: [true, "liked user required"]
     }
 },{
     timestamps: true
 })
 
-// likeSchema.pre('save', function(next){
-//     //some code
-//     try{
+likeSchema.pre('validate', function(next) {
+    
+    const fields = [this.comment, this.tweet, this.video].filter(feild=> feild != null)
 
-//         if(!this.hasOwnProperty('') && !this.tweet && !this.video) {
-//             throw new ApiError("Atleast one of the feilds required")
-//         }
-//         else if()
-//     }
-//     catch(err){
-//         next(err)
-//     }
-
-// })
+    if(!fields.length) next(new ApiError("atleast one of the feilds required"));
+    if(fields.length>1) next(new ApiError("only one of the feilds allowed"));
+})
 
 export const Like = mongoose.model('Like', likeSchema)
