@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Like } from "../models/like.model.js";
 import { Tweet } from "../models/tweet.model.js";
 import { User } from "../models/user.model.js";
@@ -10,7 +11,180 @@ const getTweet = async(req, res) => {
         throw new ApiError(400, "tweet id is required");
     }
 
-    const tweet = await Tweet.findById(tweetId);
+    const tweet = Tweet.aggregate([
+        {
+            $match: {
+                _id :  mongoose.Types.ObjectId(tweetId)
+            }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes"
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "user",
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "comments",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "likes",
+                            localField: "_id",
+                            foreignField: "comment",
+                            as: "likes",
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "user",
+                            pipeline: [
+                                {
+                                    $project : {
+                                        fullname: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "comments",
+                            localField: "_id",
+                            foreignField: "replyComment",
+                            as: "replyComments",
+                            pipeline: [
+                                {
+                                    $lookup: {
+                                        from: "likes",
+                                        localField: "_id",
+                                        foreignField: "comment",
+                                        as: "likes",
+                                    }
+                                },
+                                {
+                                    $lookup: {
+                                        from: "users",
+                                        localField: "owner",
+                                        foreignField: "_id",
+                                        as: "user",
+                                        pipeline: [
+                                            {
+                                                $project : {
+                                                    fullname: 1,
+                                                    avatar: 1
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    $addFields: {
+                                        likesCount: {
+                                            $size: "$likes"
+                                        },
+                                        LikedByUser: {
+                                            $cond: {
+                                                if: {
+                                                    $in:[req.user?._id, "$likes.likedBy"]
+                                                },
+                                                then: true,
+                                                else: false
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    $project: {
+                                        likesCount:1,
+                                        user: 1,
+                                        content: 1,
+                                        LikedByUser: 1
+                                    }
+                                }
+
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likesCount: {
+                                $size: "$likes"
+                            },
+                            repliesCount: {
+                                $size: "$replyComments"
+                            },
+                            LikedByUser: {
+                                $cond: {
+                                    if: {
+                                        $in:[req.user?._id, "$likes.likedBy"]
+                                    },
+                                    then: true,
+                                    else: false
+                                }
+                            }
+                        },
+                    },
+                    {
+                        $project: {
+                            likesCount:1,
+                            repliesCount: 1,
+                            user: 1,
+                            content: 1,
+                            LikedByUser: 1,
+                            replyComments: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                likesCount: {
+                    $size: "$likes"
+                },
+                commentsCount: {
+                    $size: "$comments"
+                },
+                LikedByUser: {
+                    $cond: {
+                        if: {
+                            $in:[req.user?._id, "$likes.likedBy"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                likesCount:1,
+                commentsCount: 1,
+                user: 1,
+                content: 1,
+                LikedByUser: 1,
+                comments: 1
+            }
+        }
+    ]).toArray()
 
     if(!tweet) {
         throw new ApiError(404, "requested tweet does not exists or has been deleted")
@@ -51,9 +225,20 @@ const getAllTweets = async(req, res) => {
             }
         },
         {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "comments"
+            }
+        },
+        {
             $addFields: {
                 likesCount: {
                     $size : "$likes"
+                },
+                commentsCount:  {
+                    $size : "$comments"
                 },
                 likedByUser: {
                     $cond: {
@@ -68,7 +253,8 @@ const getAllTweets = async(req, res) => {
             $project: {
                 likesCount: 1,
                 likedByUser: 1,
-                content: 1
+                content: 1,
+                commentsCount: 1
             }
         }
 
