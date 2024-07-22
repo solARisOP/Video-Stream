@@ -18,10 +18,10 @@ const playlistSchema = new mongoose.Schema({
         ref: "User",
         required: [true, "playlist owner required"]
     },
-    public: {
+    ispublic: {
         type: Boolean,
         required: true,
-        default: false
+        default: true
     }
 
 },{

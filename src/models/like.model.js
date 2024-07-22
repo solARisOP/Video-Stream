@@ -23,6 +23,8 @@ const likeSchema = new mongoose.Schema({
     timestamps: true
 })
 
+likeSchema.index({ comment: 1, video: 1, tweet: 1, likedBy: 1}, { unique: true })
+
 likeSchema.pre('validate', function(next) {
     
     const fields = [this.comment, this.tweet, this.video].filter(feild=> feild != null)

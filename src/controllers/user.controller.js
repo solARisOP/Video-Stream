@@ -263,7 +263,7 @@ const updateUserAvatar = async(req, res) => {
 
     return res
     .status(200)
-    .json(200, user, "avatar image uploaded successfully")
+    .json(new ApiResponse(200, user, "avatar image uploaded successfully"))
 }
 
 const updateUserCoverImage = async(req, res) => {
@@ -292,7 +292,7 @@ const updateUserCoverImage = async(req, res) => {
 
     return res
     .status(200)
-    .json(200, user, "cover image uploaded successfully")
+    .json(new ApiResponse(200, user, "cover image uploaded successfully"))
 }
 
 const getUserChannelProfile = async(req, res) => {

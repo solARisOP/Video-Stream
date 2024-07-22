@@ -214,7 +214,8 @@ const getAllVideos = async(req, res) => {
     }
 
     const videos = await Video.find({
-        owner : channelUser._id
+        owner : channelUser._id,
+        public : 1
     })
     .select("views thumbnail title duration");
 
@@ -374,5 +375,69 @@ const deleteDescription = async(req, res) => {
         200,
         video,
         "video description deleted successfully"
+    ))
+}
+
+const makeVideoPrivate = async(req, res) => {
+    const {videoId} = req.params
+    const user = req.user
+    
+    if(!videoId) {
+        throw new ApiError(400, "Video id cannot be empty")
+    }
+
+    const video = await Video.findById(videoId);
+
+    if(!video) {
+        throw new ApiError(404, "Requested video for updation does not exists or has been deleted")
+    }
+    else if(video.owner != user._id) {
+        throw new ApiError(403, "Video does not belong to the requested user")
+    }
+    else if(!video.ispublic) {
+        throw new ApiError(400, "Requested video is already private")
+    }
+
+    video.ispublic = 0
+    video.save()
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        {},
+        "Video made private successfully"
+    ))
+}
+
+const makeVideoPublic = async(req, res) => {
+    const {videoId} = req.params
+    const user = req.user
+    
+    if(!videoId) {
+        throw new ApiError(400, "Video id cannot be empty")
+    }
+
+    const video = await Video.findById(videoId);
+
+    if(!video) {
+        throw new ApiError(404, "Requested video for updation does not exists or has been deleted")
+    }
+    else if(video.owner != user._id) {
+        throw new ApiError(403, "Video does not belong to the requested user")
+    }
+    else if(video.ispublic) {
+        throw new ApiError(400, "Requested video is already public")
+    }
+
+    video.ispublic = 1
+    video.save()
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        {},
+        "Video made public successfully"
     ))
 }
