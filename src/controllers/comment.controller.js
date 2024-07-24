@@ -202,3 +202,13 @@ const commentOnTweet = async(req, res) => {
         "user successfully commented on the Tweet"
     ))
 }
+
+export {
+    likeComment,
+    unLikeComment,
+    updateComment,
+    deleteComment,
+    replyComment,
+    commentOnVideo,
+    commentOnTweet
+}

@@ -103,3 +103,9 @@ const getAllSubscribers = async(req, res) => {
     ))
 
 }
+
+export {
+    subscribe,
+    unSubscribe,
+    getAllSubscribers
+}

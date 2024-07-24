@@ -441,3 +441,15 @@ const makeVideoPublic = async(req, res) => {
         "Video made public successfully"
     ))
 }
+
+export {
+    getVideo,
+    getAllVideos,
+    likeVideo,
+    unlikeVideo,
+    updateTitle,
+    updateDescription,
+    deleteDescription,
+    makeVideoPrivate,
+    makeVideoPublic
+}
