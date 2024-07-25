@@ -35,6 +35,10 @@ const UserSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Video"
     }],
+    savedPlaylist: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Playlist"
+    }],
     password:{
         type: String,
         required: [true, "Password is required"]

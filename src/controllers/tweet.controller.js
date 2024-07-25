@@ -200,7 +200,7 @@ const getTweet = async(req, res) => {
 }
 
 const getAllTweets = async(req, res) => {
-    const username = req.query.username;
+    const {username} = req.params;
     if(!username) {
         throw new ApiError(400, "channel username required");
     }
@@ -290,7 +290,7 @@ const createTweet = async(req, res) => {
 
 const updateTweet = async(req, res) => {
     const user = req.user
-    const {tweetId} = req.query
+    const {tweetId} = req.params
     const {content} = req.body
 
     
@@ -326,7 +326,7 @@ const updateTweet = async(req, res) => {
 
 const deleteTweet = async(req, res) => {
     const user = req.user
-    const {tweetId} = req.query
+    const {tweetId} = req.params
     
     if(!tweetId) {
         throw new ApiError(400, "tweet id is required");
@@ -354,7 +354,7 @@ const deleteTweet = async(req, res) => {
 }
 
 const likeTweet = async(req, res) => {
-    const {tweetId} = req.query
+    const {tweetId} = req.params
     const user = req.user
 
     if(!tweetId) {
@@ -379,7 +379,7 @@ const likeTweet = async(req, res) => {
 }
 
 const unlikeTweet = async(req, res) => {
-    const {tweetId} = req.query
+    const {tweetId} = req.params
     const user = req.user
 
     if(!tweetId) {

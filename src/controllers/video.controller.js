@@ -203,7 +203,7 @@ const getVideo = async(req, res) => {
 }
 
 const getAllVideos = async(req, res) => {
-    const username = req.query.username;
+    const {username} = req.params;
     if(!username) {
         throw new ApiError(400, "channel username required");
     }
@@ -322,9 +322,6 @@ const updateDescription = async(req, res) => {
     if(!videoId) {
         throw new ApiError(400, "video id is required")
     }
-    else if(!description) {
-        throw new ApiError(400, "video description cannot be empty")
-    }
 
     const video = await Video.findOneAndUpdate(
         {
@@ -345,36 +342,6 @@ const updateDescription = async(req, res) => {
         200,
         video,
         "video description changed successfully"
-    ))
-}
-
-const deleteDescription = async(req, res) => {
-    const {videoId} = req.params
-    const user = req.user
-
-    if(!videoId) {
-        throw new ApiError(400, "video id is required")
-    }
-
-    const video = await Video.findOneAndUpdate(
-        {
-            _id: videoId, 
-            owner: user._id
-        }, 
-        {description: ""},
-        {new: true}
-    )
-
-    if(!video) {
-        throw new ApiError(404, "no video exists")
-    }
-
-    return res
-    .status(200)
-    .json(new ApiResponse(
-        200,
-        video,
-        "video description deleted successfully"
     ))
 }
 
@@ -449,7 +416,6 @@ export {
     unlikeVideo,
     updateTitle,
     updateDescription,
-    deleteDescription,
     makeVideoPrivate,
     makeVideoPublic
 }
