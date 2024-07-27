@@ -168,12 +168,12 @@ const refreshAccessToken = async(req, res) => {
         secure: true
     }
 
-    const {accessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user_id);
+    const {accessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id);
 
     return res
     .status(200)
-    .cookie("accessToken", accessToken)
-    .cookie("refreshToken", newRefreshToken)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
     .json(
         new ApiResponse(
             200,
@@ -210,22 +210,25 @@ const changeCurrentPassword = async(req, res) => {
 const getCurrentUser = async(req, res) => {
     return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully")
+    .json(new ApiResponse(
+        200, 
+        req.user, 
+        "current user fetched successfully"
+    ))
 }
 
-const updateAccountDetails = async(req, res) => {
-    const {fullName, email} = req.body
+const updateEmail = async(req, res) => {
+    const {email} = req.body
 
-    if(!fullName || !email) {
-        throw new ApiError(400, "All fields are required")
+    if(!email) {
+        throw new ApiError(400, "Email required for updation")
     }
 
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
-                fullName,
-                email,
+                email
             }
         },
         {new : true}
@@ -234,7 +237,28 @@ const updateAccountDetails = async(req, res) => {
 
     return res
     .status(200)
-    .json(new ApiResponse(200, user, "Account details updated successfully"))
+    .json(new ApiResponse(200, user, "Email updated successfully"))
+}
+
+const updateName = async(req, res) => {
+    const {fullName} = req.body
+
+    if(!fullName) {
+        throw new ApiError(400, "fullName required for updation")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            fullName
+        },
+        {new : true}
+    )
+    .select("-password -refreshToken")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user, "fullName updated successfully"))
 }
 
 const updateUserAvatar = async(req, res) => {
@@ -326,10 +350,10 @@ const getUserChannelProfile = async(req, res) => {
         {
             $addFields: {
                 subscriberCount: {
-                    $size: "$subcribers"
+                    $size: {"$ifNull": [ "$subcribers", [] ]}
                 },
                 subscribedToCount: {
-                    $size: "$subscribedTo"
+                    $size: {"$ifNull": [ "$subscribedTo", [] ]}
                 },
                 isSubscribed: {
                     $cond: {
@@ -370,7 +394,7 @@ const getWatchHistory = async(req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                _id : new mongoose.Types.ObjectId(req.user_id)
+                _id : new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
@@ -426,7 +450,8 @@ export {
     refreshAccessToken,
     changeCurrentPassword,
     getCurrentUser,
-    updateAccountDetails,
+    updateEmail,
+    updateName,
     updateUserAvatar,
     updateUserCoverImage,
     getUserChannelProfile,
