@@ -28,5 +28,4 @@ app.use("/api/v1/verify", verifyRouter)
 
 // handelerrors
 app.use(errorHandeler)
-
 export { app }
