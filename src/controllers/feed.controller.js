@@ -3,10 +3,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const homeVideos = async(req, res) => {
 
-    const videos = await Video.find({public:1});
-
+    const videos = await Video.find({ispublic:1});
     return res
-    .status()
+    .status(200)
     .json(new ApiResponse(
         200,
         videos,
