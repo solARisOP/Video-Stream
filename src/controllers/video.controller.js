@@ -38,8 +38,31 @@ const getVideo = async(req, res) => {
                 from: "comments",
                 localField: "_id",
                 foreignField: "video",
+                as: "comments"
+            }
+        },
+        {
+            $addFields : {
+                commentsCount : {
+                    $size : "$comments"
+                }
+            }
+        },
+        {
+            $project : {
+                comments : 0
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "video",
                 as: "comments",
                 pipeline: [
+                    {
+                        $limit: 10
+                    },
                     {
                         $lookup: {
                             from: "likes",
@@ -53,7 +76,7 @@ const getVideo = async(req, res) => {
                             from: "users",
                             localField: "owner",
                             foreignField: "_id",
-                            as: "user",
+                            as: "owner",
                             pipeline: [
                                 {
                                     $project : {
@@ -70,57 +93,6 @@ const getVideo = async(req, res) => {
                             localField: "_id",
                             foreignField: "replyComment",
                             as: "replyComments",
-                            pipeline: [
-                                {
-                                    $lookup: {
-                                        from: "likes",
-                                        localField: "_id",
-                                        foreignField: "comment",
-                                        as: "likes",
-                                    }
-                                },
-                                {
-                                    $lookup: {
-                                        from: "users",
-                                        localField: "owner",
-                                        foreignField: "_id",
-                                        as: "user",
-                                        pipeline: [
-                                            {
-                                                $project : {
-                                                    fullname: 1,
-                                                    avatar: 1
-                                                }
-                                            }
-                                        ]
-                                    }
-                                },
-                                {
-                                    $addFields: {
-                                        likesCount: {
-                                            $size: "$likes"
-                                        },
-                                        LikedByUser: {
-                                            $cond: {
-                                                if: {
-                                                    $in:[req.user?._id, "$likes.likedBy"]
-                                                },
-                                                then: true,
-                                                else: false
-                                            }
-                                        }
-                                    }
-                                },
-                                {
-                                    $project: {
-                                        likesCount:1,
-                                        user: 1,
-                                        content: 1,
-                                        LikedByUser: 1
-                                    }
-                                }
-
-                            ]
                         }
                     },
                     {
@@ -132,15 +104,16 @@ const getVideo = async(req, res) => {
                                 $size: "$replyComments"
                             },
                             LikedByUser: {
-                                $cond: {
-                                    if: {
-                                        $in:[req.user?._id, "$likes.likedBy"]
-                                    },
-                                    then: true,
-                                    else: false
-                                }
+                                $in:[req.user?._id, "$likes.likedBy"]
                             }
                         },
+                    },
+                    {
+                        $addFields: {
+                            user : {
+                                $first : "$user"
+                            }
+                        }
                     },
                     {
                         $project: {
@@ -149,7 +122,6 @@ const getVideo = async(req, res) => {
                             user: 1,
                             content: 1,
                             LikedByUser: 1,
-                            replyComments: 1
                         }
                     }
                 ]
@@ -164,13 +136,10 @@ const getVideo = async(req, res) => {
                     $size: "$comments"
                 },
                 LikedByUser: {
-                    $cond: {
-                        if: {
-                            $in:[req.user?._id, "$likes.likedBy"]
-                        },
-                        then: true,
-                        else: false
-                    }
+                    $in:[req.user?._id, "$likes.likedBy"]
+                },
+                user : {
+                    $first : "$user"
                 }
             }
         },
@@ -186,23 +155,32 @@ const getVideo = async(req, res) => {
                 comments: 1
             }
         }
-    ]).toArray()
+    ])
 
     if(!video) {
         throw new ApiError(404, "requested video does not exists or has been deleted")
+    }
+
+    let next = -1
+    if(video.commentsCount > 10) {
+        next = 10
     }
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
-        video,
+        {
+            video,
+            next
+        },
         "video fetched successfully"
     ))
 }
 
-const getAllVideos = async(req, res) => {
+const getVideos = async(req, res) => {
     const {username} = req.params;
+    const {start} = req.query;
     if(!username) {
         throw new ApiError(400, "channel username required");
     }
@@ -212,17 +190,75 @@ const getAllVideos = async(req, res) => {
         throw new ApiError(404, "username does not exists");
     }
 
-    const videos = await Video.find({
-        owner : channelUser._id,
-        public : 1
-    })
-    .select("views thumbnail title duration");
+    let startIdx = parseInt(start) 
+
+    let videos = await Video.aggregate([
+        {
+            $match : {
+                owner : channelUser._id,
+                ...(!channelUser._id.equals(req.user?._id) && {public : 1})
+            }
+        },
+        {
+            $skip: startIdx
+        },
+        {
+            $limit: 11
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes"
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "video",
+                as: "comments"
+            }
+        },
+        {
+            $addFields: {
+                likesCount: {
+                    $size : "$likes"
+                },
+                commentsCount:  {
+                    $size : "$comments"
+                },
+                likedByUser: {
+                    $in:[req.user?._id, "$likes.likedBy"]
+                }
+            }
+        },
+        {
+            $project: {
+                likesCount: 1,
+                likedByUser: 1,
+                content: 1,
+                commentsCount: 1
+            }
+        }
+
+    ]);
+
+    let next = -1
+    if(videos.length == 11) {
+        videos = videos.slice(0, 10)
+        next = 10
+    }
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
-        videos,
+        {
+            videos,
+            next
+        },
         "all videos fetched successfully"
     ))
 }
@@ -365,7 +401,7 @@ const makeVideoPrivate = async(req, res) => {
     }
 
     video.ispublic = 0
-    video.save()
+    await video.save()
 
     return res
     .status(200)
@@ -397,7 +433,7 @@ const makeVideoPublic = async(req, res) => {
     }
 
     video.ispublic = 1
-    video.save()
+    await video.save()
 
     return res
     .status(200)
@@ -410,7 +446,7 @@ const makeVideoPublic = async(req, res) => {
 
 export {
     getVideo,
-    getAllVideos,
+    getVideos,
     likeVideo,
     unlikeVideo,
     updateTitle,

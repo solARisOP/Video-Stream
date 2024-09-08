@@ -1,8 +1,12 @@
-const errorHandeler = async(err, req, res, next)=>{
+const errorHandeler = (err, req, res, _)=>{
+    let statusCode = 500;
+    
+    if(!err.statusCode && err.name=='ValidationError') statusCode = 400
+
     return res
-    .status(err.statusCode || 500)
+    .status(err.statusCode || statusCode)
     .json({
-        statusCode : err.statusCode || 500,
+        statusCode : err.statusCode || statusCode,
         message: err.message,
         stack: err.stack,
         success : false

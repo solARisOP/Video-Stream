@@ -39,7 +39,30 @@ const getTweet = async(req, res) => {
                 localField: "_id",
                 foreignField: "tweet",
                 as: "comments",
+            }
+        },
+        {
+            $addFields: {
+                commentsCount : {
+                    $size : "$comments"
+                }
+            }
+        },
+        {
+            $project: {
+                comments : 0
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "comments",
                 pipeline: [
+                    {
+                        $limit: 10
+                    },
                     {
                         $lookup: {
                             from: "likes",
@@ -70,57 +93,6 @@ const getTweet = async(req, res) => {
                             localField: "_id",
                             foreignField: "replyComment",
                             as: "replyComments",
-                            pipeline: [
-                                {
-                                    $lookup: {
-                                        from: "likes",
-                                        localField: "_id",
-                                        foreignField: "comment",
-                                        as: "likes",
-                                    }
-                                },
-                                {
-                                    $lookup: {
-                                        from: "users",
-                                        localField: "owner",
-                                        foreignField: "_id",
-                                        as: "user",
-                                        pipeline: [
-                                            {
-                                                $project : {
-                                                    fullname: 1,
-                                                    avatar: 1
-                                                }
-                                            }
-                                        ]
-                                    }
-                                },
-                                {
-                                    $addFields: {
-                                        likesCount: {
-                                            $size: "$likes"
-                                        },
-                                        LikedByUser: {
-                                            $cond: {
-                                                if: {
-                                                    $in:[req.user?._id, "$likes.likedBy"]
-                                                },
-                                                then: true,
-                                                else: false
-                                            }
-                                        }
-                                    }
-                                },
-                                {
-                                    $project: {
-                                        likesCount:1,
-                                        user: 1,
-                                        content: 1,
-                                        LikedByUser: 1
-                                    }
-                                }
-
-                            ]
                         }
                     },
                     {
@@ -139,6 +111,9 @@ const getTweet = async(req, res) => {
                                     then: true,
                                     else: false
                                 }
+                            },
+                            user : {
+                                $first : "$user"
                             }
                         },
                     },
@@ -148,8 +123,7 @@ const getTweet = async(req, res) => {
                             repliesCount: 1,
                             user: 1,
                             content: 1,
-                            LikedByUser: 1,
-                            replyComments: 1
+                            LikedByUser: 1
                         }
                     }
                 ]
@@ -171,6 +145,9 @@ const getTweet = async(req, res) => {
                         then: true,
                         else: false
                     }
+                },
+                user : {
+                    $first : "$user"
                 }
             }
         },
@@ -184,23 +161,33 @@ const getTweet = async(req, res) => {
                 comments: 1
             }
         }
-    ]).toArray()
+    ])
 
+    
     if(!tweet) {
         throw new ApiError(404, "requested tweet does not exists or has been deleted")
+    }
+    
+    let next = -1
+    if(tweet.commentsCount > 10) {
+        next = 10
     }
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
-        tweet,
+        {
+            tweet,
+            next
+        },
         "tweet fetched successfully"
     ))
 }
 
-const getAllTweets = async(req, res) => {
+const getTweets = async(req, res) => {
     const {username} = req.params;
+    const {start} = req.query;
     if(!username) {
         throw new ApiError(400, "channel username required");
     }
@@ -209,12 +196,21 @@ const getAllTweets = async(req, res) => {
     if(!channelUser) {
         throw new ApiError(404, "username does not exists");
     }
+    
+    let startIdx = parseInt(start) 
 
-    const tweets = await Tweet.aggregate([
+    let tweets = await Tweet.aggregate([
         {
             $match : {
-                owner : channelUser._id
+                owner : channelUser._id,
+                ...(!channelUser._id.equals(req.user?._id) && {public : 1})
             }
+        },
+        {
+            $skip: startIdx
+        },
+        {
+            $limit: 11
         },
         {
             $lookup: {
@@ -258,13 +254,22 @@ const getAllTweets = async(req, res) => {
             }
         }
 
-    ]).toArray();
+    ]);
+
+    let next = -1
+    if(tweets.length == 11) {
+        tweets = tweets.slice(0, 10);
+        next = startIdx + 10;
+    }
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
-        tweets,
+        {
+            tweets,
+            next
+        },
         "all tweets fetched successfully"
     ))
 }
@@ -389,7 +394,7 @@ const unlikeTweet = async(req, res) => {
     const like = await Like.find({tweet: tweetId, likedBy: user._id})
     
     if(!like) {
-        throw new ApiError(404, "like does not exits")
+        throw new ApiError(404, "user has not liked the tweet or has already unliked the tweet")
     }
 
     await Like.findByIdAndDelete(like._id)
@@ -403,12 +408,78 @@ const unlikeTweet = async(req, res) => {
     ))
 }
 
+const makeTweetPrivate = async(req, res) => {
+    const {tweetId} = req.params
+    const user = req.user
+    
+    if(!tweetId) {
+        throw new ApiError(400, "Tweet id cannot be empty")
+    }
+
+    const tweet = await Tweet.findById(tweetId);
+
+    if(!tweet) {
+        throw new ApiError(404, "Requested tweet for updation does not exists or has been deleted")
+    }
+    else if(tweet.owner != user._id) {
+        throw new ApiError(403, "Tweet does not belong to the requested user")
+    }
+    else if(!tweet.ispublic) {
+        throw new ApiError(400, "Requested tweet is already private")
+    }
+
+    tweet.ispublic = 0
+    await tweet.save()
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        {},
+        "Tweet made private successfully"
+    ))
+}
+
+const makeTweetPublic = async(req, res) => {
+    const {tweetId} = req.params
+    const user = req.user
+    
+    if(!tweetId) {
+        throw new ApiError(400, "Tweet id cannot be empty")
+    }
+
+    const tweet = await Tweet.findById(tweetId);
+
+    if(!tweet) {
+        throw new ApiError(404, "Requested tweet for updation does not exists or has been deleted")
+    }
+    else if(tweet.owner != user._id) {
+        throw new ApiError(403, "Tweet does not belong to the requested user")
+    }
+    else if(tweet.ispublic) {
+        throw new ApiError(400, "Requested tweet is already public")
+    }
+
+    tweet.ispublic = 1
+    await tweet.save()
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        {},
+        "Tweet made public successfully"
+    ))
+}
+
 export {
     getTweet,
-    getAllTweets,
+    getTweets,
     createTweet,
     updateTweet,
     deleteTweet,
     likeTweet,
-    unlikeTweet
+    unlikeTweet,
+    makeTweetPrivate,
+    makeTweetPublic
 }

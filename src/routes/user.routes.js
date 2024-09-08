@@ -15,6 +15,8 @@ import {
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import verifyEmail from "../routes/verification.routes.js";
+import { checkUser } from "../middlewares/userCheck.middleware.js";
 const router = Router();
 
 router.route("/register").post(
@@ -30,6 +32,8 @@ router.route("/register").post(
     ]),
     registerUser
 )
+
+router.use("/verify", verifyEmail)
 
 router.route("/login").post(loginUser)
 
@@ -49,7 +53,7 @@ router.route("/update-avatar").patch(verifyJWT, upload.single("avatar"), updateU
 
 router.route("/update-coverImage").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage) 
 
-router.route("/channel/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/channel/:username").get(checkUser, getUserChannelProfile)
 
 router.route("/history").get(verifyJWT, getWatchHistory)
 

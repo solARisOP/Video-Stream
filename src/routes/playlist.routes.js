@@ -12,14 +12,15 @@ import {
     makePlaylistPublic
 } from "../controllers/playlist.controller.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { checkUser } from "../middlewares/userCheck.middleware.js";
 
 const router = Router()
 
 router.route('/create-playlist').post(verifyJWT, createPlaylist)
 
-router.route('/get-playlist').get(verifyJWT, getPlaylist)
+router.route('/get-playlist').get(checkUser, getPlaylist)
 
-router.route('/get-all-playlists/:channelId').get(verifyJWT, getAllPlaylists)
+router.route('/get-all-playlists/:channelId').get(checkUser, getAllPlaylists)
 
 router.route('/update-playlist-title/:playlistId').patch(verifyJWT, updatePlaylistTitle)
 

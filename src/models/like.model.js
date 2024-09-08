@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { ApiError } from "../utils/ApiError"
+import { ApiError } from "../utils/ApiError.js"
 
 const likeSchema = new mongoose.Schema({
     comment: {
@@ -29,8 +29,13 @@ likeSchema.pre('validate', function(next) {
     
     const fields = [this.comment, this.tweet, this.video].filter(feild=> feild != null)
 
-    if(!fields.length) next(new ApiError("atleast one of the feilds required"));
-    if(fields.length>1) next(new ApiError("only one of the feilds allowed"));
+    if(!fields.length) {
+        next(new ApiError(400, "atleast one of the feilds required"));
+    } 
+    if(fields.length>1) {
+        next(new ApiError(400, "only one of the feilds allowed"));
+    }
+    next();
 })
 
 export const Like = mongoose.model('Like', likeSchema)

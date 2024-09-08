@@ -64,12 +64,21 @@ const unSubscribe = async(req, res) => {
 }
 
 const getAllSubscribers = async(req, res) => {
+    const {start} = req.query
     const user = req.user
-    const subscribers = await Subscription.aggregate([
+
+    let startIdx = parseInt(start);
+    let subscribers = await Subscription.aggregate([
         {
             $match : {
                 channel : user._id
             }
+        },
+        {
+            $skip : startIdx
+        },
+        {
+            $limit : 21
         },
         {
             $lookup : {
@@ -83,7 +92,27 @@ const getAllSubscribers = async(req, res) => {
                             fullname: 1,
                             avatar: 1
                         }
-                    }
+                    },
+                    {
+                        $lookup: {
+                            from: "subscriptions",
+                            localField: "_id",
+                            foreignField: "channel",
+                            as: "subscribers",
+                        }
+                    },
+                    {
+                        $addFields : {
+                            isUserSubscribed : {
+                                $in : [req.user._id, "$subscribers.subscriber"]
+                            }
+                        }
+                    },
+                    {
+                        $project: {
+                            subscribers: 0,
+                        }
+                    },
                 ]
             }
         },
@@ -92,13 +121,22 @@ const getAllSubscribers = async(req, res) => {
                 subscriberUser : 1
             }
         }
-    ]).toArray()
+    ])
+
+    let next = -1;
+    if(subscribers.length == 21) {
+        subscribers = subscribers.slice(0, 20)
+        next = startIdx + 20
+    }
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
-        subscribers,
+        {
+            subscribers,
+            next
+        },
         "all subscribers fetched successfully"
     ))
 

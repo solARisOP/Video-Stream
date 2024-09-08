@@ -42,7 +42,7 @@ const getPlaylist = async(req, res) => {
     const playlist = await Playlist.aggregate([
         {
             $match: {
-                _id : mongoose.Types.ObjectId(videoId)
+                _id : mongoose.Types.ObjectId(playlistId)
             }
         },
         {
@@ -69,7 +69,7 @@ const getPlaylist = async(req, res) => {
                     {
                         $project : {
                             user : {
-                                $arrayElemAt: ["$user", 0]
+                                $first: "$user"
                             }
                         }
                     }
@@ -107,14 +107,14 @@ const getPlaylist = async(req, res) => {
         {
             $project : {
                 user : {
-                    $arrayElemAt: ["$user", 0]
+                    $first: "$user"
                 },
                 videosInfo: 1,
                 name : 1,
                 description: 1,
             }
         }
-    ]).toArray()
+    ])
     
     if(!playlist) {
         throw new ApiError(404, "No playlist found")
@@ -138,13 +138,13 @@ const getAllPlaylists = async(req, res) => {
             {owner : channelId},
             {$or: [
                 {ispublic: true}, 
-                {owner: user._id}
+                {owner: user?._id}
             ]}
         ]
     })
     
     if(!playlists) {
-        throw new ApiError(404, "No playlists avaliable for this")
+        throw new ApiError(404, "No playlists avaliable for this channelId")
     }
 
     return res

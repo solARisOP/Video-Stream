@@ -9,6 +9,10 @@ const TweetSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+    },
+    ispublic: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true
