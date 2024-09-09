@@ -11,10 +11,10 @@ const getTweet = async(req, res) => {
         throw new ApiError(400, "tweet id is required");
     }
 
-    const tweet = Tweet.aggregate([
+    const tweet = await Tweet.aggregate([
         {
             $match: {
-                _id :  mongoose.Types.ObjectId(tweetId)
+                _id :  new mongoose.Types.ObjectId(tweetId)
             }
         },
         {
@@ -30,6 +30,14 @@ const getTweet = async(req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
+                pipeline : [
+                    {
+                        $project : {
+                            fullname: 1,
+                            avatar: 1
+                        }
+                    }
+                ],
                 as: "user",
             }
         },
@@ -192,7 +200,7 @@ const getTweets = async(req, res) => {
         throw new ApiError(400, "channel username required");
     }
 
-    const channelUser = await User.find({username})
+    const channelUser = await User.findOne({username})
     if(!channelUser) {
         throw new ApiError(404, "username does not exists");
     }
@@ -203,7 +211,7 @@ const getTweets = async(req, res) => {
         {
             $match : {
                 owner : channelUser._id,
-                ...(!channelUser._id.equals(req.user?._id) && {public : 1})
+                ...(!channelUser._id.equals(req.user?._id) && {ispublic : true})
             }
         },
         {
@@ -313,7 +321,7 @@ const updateTweet = async(req, res) => {
         throw new ApiError(404, "requested tweet does not exists or has been deleted")
     }
 
-    if(user._id != tweet.owner) {
+    if(!user._id.equals(tweet.owner)) {
         throw new ApiError(403, "tweet does not belong to the requested user")
     }
 
@@ -343,7 +351,7 @@ const deleteTweet = async(req, res) => {
         throw new ApiError(404, "requested tweet does not exists or has been deleted")
     }
 
-    if(user._id != tweet.owner) {
+    if(!user._id.equals(tweet.owner)) {
         throw new ApiError(403, "tweet does not belong to the requested user")
     }
 
@@ -366,7 +374,7 @@ const likeTweet = async(req, res) => {
         throw new ApiError(400, "tweetId is required")
     }
 
-    const like = await Like.find({tweet: tweetId, likedBy: user._id})
+    const like = await Like.findOne({tweet: tweetId, likedBy: user._id})
     
     if(like) {
         throw new ApiError(400, "user has already liked the tweet")
@@ -391,7 +399,7 @@ const unlikeTweet = async(req, res) => {
         throw new ApiError(400, "tweetId is required")
     }
 
-    const like = await Like.find({tweet: tweetId, likedBy: user._id})
+    const like = await Like.findOne({tweet: tweetId, likedBy: user._id})
     
     if(!like) {
         throw new ApiError(404, "user has not liked the tweet or has already unliked the tweet")
@@ -421,7 +429,7 @@ const makeTweetPrivate = async(req, res) => {
     if(!tweet) {
         throw new ApiError(404, "Requested tweet for updation does not exists or has been deleted")
     }
-    else if(tweet.owner != user._id) {
+    else if(!tweet.owner.equals(user._id))  {
         throw new ApiError(403, "Tweet does not belong to the requested user")
     }
     else if(!tweet.ispublic) {
@@ -453,7 +461,7 @@ const makeTweetPublic = async(req, res) => {
     if(!tweet) {
         throw new ApiError(404, "Requested tweet for updation does not exists or has been deleted")
     }
-    else if(tweet.owner != user._id) {
+    else if(!tweet.owner.equals(user._id)) {
         throw new ApiError(403, "Tweet does not belong to the requested user")
     }
     else if(tweet.ispublic) {

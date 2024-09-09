@@ -196,7 +196,7 @@ const getVideos = async(req, res) => {
         {
             $match : {
                 owner : channelUser._id,
-                ...(!channelUser._id.equals(req.user?._id) && {public : 1})
+                ...(!channelUser._id.equals(req.user?._id) && {ispublic : true})
             }
         },
         {
@@ -204,45 +204,7 @@ const getVideos = async(req, res) => {
         },
         {
             $limit: 11
-        },
-        {
-            $lookup: {
-                from: "likes",
-                localField: "_id",
-                foreignField: "video",
-                as: "likes"
-            }
-        },
-        {
-            $lookup: {
-                from: "comments",
-                localField: "_id",
-                foreignField: "video",
-                as: "comments"
-            }
-        },
-        {
-            $addFields: {
-                likesCount: {
-                    $size : "$likes"
-                },
-                commentsCount:  {
-                    $size : "$comments"
-                },
-                likedByUser: {
-                    $in:[req.user?._id, "$likes.likedBy"]
-                }
-            }
-        },
-        {
-            $project: {
-                likesCount: 1,
-                likedByUser: 1,
-                content: 1,
-                commentsCount: 1
-            }
         }
-
     ]);
 
     let next = -1

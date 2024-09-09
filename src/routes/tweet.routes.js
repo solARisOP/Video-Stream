@@ -32,3 +32,5 @@ router.route("/unlike-tweet/:tweetId").delete(verifyJWT, unlikeTweet)
 router.route("/private-tweet/:tweetId").patch(verifyJWT, makeTweetPrivate)
 
 router.route("/public-tweet/:tweetId").patch(verifyJWT, makeTweetPublic)
+
+export default router

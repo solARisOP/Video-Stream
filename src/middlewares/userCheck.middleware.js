@@ -7,7 +7,7 @@ export const checkUser = async (req, _, next) => {
 
     if (!token) {
         req.user = null;
-        next()
+        return next()
     }
 
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
@@ -19,5 +19,5 @@ export const checkUser = async (req, _, next) => {
     }
 
     req.user = user;
-    next()
+    return next()
 }

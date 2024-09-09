@@ -23,9 +23,9 @@ const generateAccessAndRefreshTokens = async(userId) => {
 const registerUser = async(req, res) => {
     const {fullname, email, username, password} = req.body;
 
-    if([fullname, email, username, password].some((value)=>value?.trim()==="")){
+    if(!fullname || !email || !username || !password || [fullname, email, username, password].some((value)=>value.trim()==="")) {
         throw new ApiError(400, "All fields are required");
-    } 
+    }
 
     const duplicateUser = await User.findOne({
         $or: [{username}, {email}]
