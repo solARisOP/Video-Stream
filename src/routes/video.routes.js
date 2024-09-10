@@ -4,8 +4,7 @@ import {
     getVideos,
     likeVideo,
     unlikeVideo,
-    updateTitle,
-    updateDescription,
+    updateVideo,
     makeVideoPrivate,
     makeVideoPublic
 } from "../controllers/video.controller.js"
@@ -22,10 +21,10 @@ router.route('/like-Video/:videoId').post(verifyJWT, likeVideo)
 
 router.route('/unlike-Video/:videoId').delete(verifyJWT, unlikeVideo)
 
-router.route('/update-video-title/:videoId').patch(verifyJWT, updateTitle)
-
-router.route('/update-video-description/:videoId').patch(verifyJWT, updateDescription)
+router.route('/update-video/:videoId').patch(verifyJWT, updateVideo)
 
 router.route('/private-Video/:videoId').patch(verifyJWT, makeVideoPrivate)
 
 router.route('/public-Video/:videoId').patch(verifyJWT, makeVideoPublic)
+
+export default router
