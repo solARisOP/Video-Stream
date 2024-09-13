@@ -10,7 +10,7 @@ const TweetSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    ispublic: {
+    isPublic: {
         type: Boolean,
         default: true
     }

@@ -212,7 +212,7 @@ const getVideos = async (req, res) => {
 
     let videos = await Video.find({
             owner: channelUser._id,
-            ...(!channelUser._id.equals(req.user?._id) && { ispublic: true, isPublished: true })
+            ...(!channelUser._id.equals(req.user?._id) && { isPublic: true })
         },{
             description: 0, 
             owner: 0
@@ -345,11 +345,11 @@ const makeVideoPrivate = async (req, res) => {
     else if (!video.owner.equals(user._id)) {
         throw new ApiError(403, "Video does not belong to the requested user")
     }
-    else if (!video.ispublic) {
+    else if (!video.isPublic) {
         throw new ApiError(400, "Requested video is already private")
     }
 
-    video.ispublic = 0
+    video.isPublic = 0
     await video.save()
 
     return res
@@ -377,11 +377,11 @@ const makeVideoPublic = async (req, res) => {
     else if (!video.owner.equals(user._id)) {
         throw new ApiError(403, "Video does not belong to the requested user")
     }
-    else if (video.ispublic) {
+    else if (video.isPublic) {
         throw new ApiError(400, "Requested video is already public")
     }
 
-    video.ispublic = 1
+    video.isPublic = 1
     await video.save()
 
     return res

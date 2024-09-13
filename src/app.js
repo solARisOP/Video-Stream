@@ -8,7 +8,7 @@ const app = express()
 //middlwares
 app.use(cors({
 	origin: process.env.ORIGIN,
-	methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
+	methods: ["GET", "PATCH", "POST", "DELETE"],
 	credentials: true
 }));
 
@@ -24,6 +24,8 @@ import errorHandeler from "./middlewares/errorHandeller.middleware.js"
 import feedRouter from "./routes/feed.routes.js"
 import tweetRouter from "./routes/tweet.routes.js"
 import videoRouter from "./routes/video.routes.js"
+import playlistRouter from "./routes/playlist.routes.js"
+import subscriptionRouter from "./routes/subscriptions.routes.js"
 
 // routes declaration
 app.use("/api/v1/user", userRouter)
@@ -35,6 +37,10 @@ app.use("/api/v1/comment", commentRouter)
 app.use("/api/v1/tweet", tweetRouter)
 
 app.use("/api/v1/video", videoRouter)
+
+app.use("/api/v1/playlist", playlistRouter)
+
+app.use("/api/v1/subscription", subscriptionRouter)
 
 // handelerrors
 app.use(errorHandeler)

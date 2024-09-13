@@ -211,7 +211,7 @@ const getTweets = async(req, res) => {
         {
             $match : {
                 owner : channelUser._id,
-                ...(!channelUser._id.equals(req.user?._id) && {ispublic : true})
+                ...(!channelUser._id.equals(req.user?._id) && {isPublic : true})
             }
         },
         {
@@ -432,11 +432,11 @@ const makeTweetPrivate = async(req, res) => {
     else if(!tweet.owner.equals(user._id))  {
         throw new ApiError(403, "Tweet does not belong to the requested user")
     }
-    else if(!tweet.ispublic) {
+    else if(!tweet.isPublic) {
         throw new ApiError(400, "Requested tweet is already private")
     }
 
-    tweet.ispublic = 0
+    tweet.isPublic = 0
     await tweet.save()
 
     return res
@@ -464,11 +464,11 @@ const makeTweetPublic = async(req, res) => {
     else if(!tweet.owner.equals(user._id)) {
         throw new ApiError(403, "Tweet does not belong to the requested user")
     }
-    else if(tweet.ispublic) {
+    else if(tweet.isPublic) {
         throw new ApiError(400, "Requested tweet is already public")
     }
 
-    tweet.ispublic = 1
+    tweet.isPublic = 1
     await tweet.save()
 
     return res

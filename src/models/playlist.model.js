@@ -12,13 +12,18 @@ const playlistSchema = new mongoose.Schema({
     }],
     description: {
         type: String,
+        trim: true,
+        default: ""
     },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: [true, "playlist owner required"]
     },
-    ispublic: {
+    thumbnail : {
+        type: String,
+    },
+    isPublic: {
         type: Boolean,
         required: true,
         default: true
@@ -28,4 +33,4 @@ const playlistSchema = new mongoose.Schema({
     timestamps: true
 })
 
-export const Playlist = mongoose.model('Comment', playlistSchema)
+export const Playlist = mongoose.model('Playlist', playlistSchema)

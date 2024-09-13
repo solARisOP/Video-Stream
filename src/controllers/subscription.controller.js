@@ -10,6 +10,9 @@ const subscribe = async(req, res) => {
     if(!channelUserId) {
         throw new ApiError(400, "Channel user id cannot be empty")
     }
+    else if(user._id.equals(channelUserId)) {
+        throw new ApiError(400, "user cannot subscribe to own channel")
+    }
     
     const subscriber = await Subscription.findOne({channel : channelUserId, subscriber: user._id});
     
@@ -63,7 +66,11 @@ const unSubscribe = async(req, res) => {
     ))
 }
 
-const getAllSubscribers = async(req, res) => {
+const getSubscribers = async(req, res) => {
+    if (!req.query.hasOwnProperty('start')) {
+        throw new ApiError(400, "start query param missing");
+    }
+    
     const {start} = req.query
     const user = req.user
 
@@ -117,8 +124,10 @@ const getAllSubscribers = async(req, res) => {
             }
         },
         {
-            $project: {
-                subscriberUser : 1
+            $replaceRoot : {
+                newRoot : {
+                    $first : "$subscriberUser"
+                }
             }
         }
     ])
@@ -145,5 +154,5 @@ const getAllSubscribers = async(req, res) => {
 export {
     subscribe,
     unSubscribe,
-    getAllSubscribers
+    getSubscribers
 }

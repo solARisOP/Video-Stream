@@ -6,20 +6,17 @@ import { Video } from "../models/video.model.js"
 
 const createPlaylist = async(req, res) => {
     const user = req.user
-    const {name, description, ispublic} = req.body
+    const {name, description, isPublic} = req.body
 
     if(!name.trim()) {
-        throw new ApiError(400, "playlist title cannot be empty")
-    }
-    else if(!name.trim()) {
         throw new ApiError(400, "playlist title cannot be empty")
     }
     
     const newPlaylist = await Playlist.create({
         name, 
         description, 
-        ispublic, 
-        owner : user
+        isPublic, 
+        owner : user._id
     })
 
     return res
@@ -32,8 +29,8 @@ const createPlaylist = async(req, res) => {
 }
 
 const getPlaylist = async(req, res) => {
-    const playlistId = req.query
-    const user = req.user || null
+    const {playlistId} = req.query
+    const userId = req.user?._id || null;
 
     if(!playlistId.trim()) {
         throw new ApiError(400, "playlist id cannot be empty")
@@ -42,7 +39,11 @@ const getPlaylist = async(req, res) => {
     const playlist = await Playlist.aggregate([
         {
             $match: {
-                _id : mongoose.Types.ObjectId(playlistId)
+                _id : new mongoose.Types.ObjectId(playlistId),
+                $or : [
+                    {owner : userId},
+                    {isPublic : true}
+                ]
             }
         },
         {
@@ -70,7 +71,12 @@ const getPlaylist = async(req, res) => {
                         $project : {
                             user : {
                                 $first: "$user"
-                            }
+                            },
+                            isPublic : 1,
+                            thumbnail : 1,
+                            title : 1,
+                            views : 1,
+                            duration : 1
                         }
                     }
                 ],
@@ -93,30 +99,32 @@ const getPlaylist = async(req, res) => {
             }
         },
         {
-            $filter: {
-                input: "$videosInfo",
-                as: "video",
-                cond: {
-                    $or:[
-                        { $eq : ["$$video.ispublic", true] },
-                        { $eq: [ "$$video.owner", user?._id ] },
-                    ]
-                }
-            }
-        },
-        {
             $project : {
                 user : {
                     $first: "$user"
                 },
-                videosInfo: 1,
                 name : 1,
                 description: 1,
+                videosInfo : {
+                    $filter: {
+                        input: "$videosInfo",
+                        as: "video",
+                        cond: {
+                            $or:[
+                                { $eq : ["$$video.isPublic", true] },
+                                { $eq: [ "$$video.user._id", userId ] },
+                            ]
+                        }
+                    }
+                },
+                totalVideos : {
+                    $size : "$videos"
+                }
             }
         }
     ])
     
-    if(!playlist) {
+    if(!playlist[0]) {
         throw new ApiError(404, "No playlist found")
     }
 
@@ -124,7 +132,7 @@ const getPlaylist = async(req, res) => {
     .status(200)
     .json(new ApiResponse(
         200,
-        playlist,
+        playlist[0],
         "Playlist fetched successfully"
     ))
 }
@@ -134,16 +142,14 @@ const getAllPlaylists = async(req, res) => {
     const user = req.user
 
     const playlists = await Playlist.find({
-        $and: [
-            {owner : channelId},
-            {$or: [
-                {ispublic: true}, 
-                {owner: user?._id}
-            ]}
+        owner : channelId,
+        $or: [
+            {isPublic: true}, 
+            {owner: user?._id}
         ]
     })
     
-    if(!playlists) {
+    if(!playlists.length) {
         throw new ApiError(404, "No playlists avaliable for this channelId")
     }
 
@@ -156,29 +162,37 @@ const getAllPlaylists = async(req, res) => {
     ))
 }
 
-const updatePlaylistTitle = async(req, res) => {
+const updatePlaylist = async(req, res) => {
     const {playlistId} = req.params
-    const {name} = req.body
+    const {field, content} = req.body
+
+    if(field != 'name' && field != 'description') {
+        throw new ApiError(400, "invalid field name")
+    }
 
     if(!playlistId.trim()) {
         throw new ApiError(400, "playlist id cannot be empty")
     }
-    else if(!name.trim()) {
-        throw new ApiError(400, "name cannot be empty")
-    }
 
-    const playlist = await Playlist.findByIdAndUpdate(playlistId.trim(), {name: name.trim()}, {new: true})
+    const playlist = await Playlist.findById(playlistId)
     
     if(!playlist) {
         throw new ApiError(404, "No playlist exists for give id or has been deleted")
     }
+    else if(!playlist.owner.equals(req.user._id)) {
+        throw new ApiError(404, "Requested playlist for updation doesnot belong to the user")
+    }
+
+    playlist[field] = content
+
+    await playlist.save({new : true})
 
     return res
     .status(200)
     .json(new ApiResponse(
         200,
         playlist,
-        "Playlist name updated sucessfully"
+        `Playlist ${field} updated sucessfully`
     ))
 }
 
@@ -196,7 +210,7 @@ const deletePlaylist = async(req, res) => {
     if(!delPlaylist){
         throw new ApiError(404, "Requested playlist doesnot exist or has already been deleted")
     }
-    else if(delPlaylist.owner != req.user._id) {
+    else if(!delPlaylist.owner.equals(req.user._id)) {
         throw new ApiError(403, "The requested playlist for deletion doesn't belong to the requested user")
     }
 
@@ -212,56 +226,32 @@ const deletePlaylist = async(req, res) => {
 
 }
 
-const updatePlaylistDescription = async(req, res) => {
-    let {playlistId} = req.params;
-    let {description} = req.body;
-
-    playlistId = playlistId.trim();
-    description = description.trim();
-
-    if(!playlistId) {
-        throw new ApiError(400, "Playlist id cannot be empty")
-    }
-
-    const playlist = await Playlist.findById(playlistId);
-
-    if(!playlist){
-        throw new ApiError(404, "Requested playlist for updation does not exist or has already been deleted")
-    }
-    else if(playlist.owner != req.user._id) {
-        throw new ApiError(403, "The requested playlist for updation does not belong to the requested user")
-    }
-
-    const updatedPlaylist = await Playlist.findByIdAndUpdate(playlistId, {description}, {new : true});
-
-
-    return res
-    .status(200)
-    .json(new ApiResponse(
-        200,
-        updatedPlaylist,
-        "Playlist deleted successfully"
-    ))
-}
-
 const addVideos = async(req, res) => {
-    let {playlistId} = req.params;
+    const {playlistId} = req.params;
     let {videos} = req.body;
 
-    playlistId = playlistId.trim()
+    const playlist = await Playlist.findById(playlistId)
+
+    if(!playlist) {
+        throw new ApiError(404, "requested playlist for updation does not exists")
+    }
+    else if(!playlist.owner.equals(req.user._id)) {
+        throw new ApiError(403, "Requested playlist for updation does not belong to user")
+    }
+
     videos = [...new Set(videos)]
 
     if(!playlistId) {
         throw new ApiError(400, "Playlist id cannot be empty")
     }
-    else if(videos.length<0) {
-        throw new ApiError(400, "videos list cannot br empty")
+    else if(!videos.length) {
+        throw new ApiError(400, "videos list cannot be empty")
     }
     
-    const fetchedVideos = await Video.find({
+    let fetchedVideos = await Video.find({
         _id: {$in:videos},
         $or:[
-            {ispublic : 1},
+            {isPublic : 1},
             {owner: req.user._id}
         ]
     }).select("_id");
@@ -269,19 +259,10 @@ const addVideos = async(req, res) => {
     if(videos.length != fetchedVideos.length) {
         throw new ApiError(403, "user does not have access to some videos or the videos does not exists")
     }
-
-    const playlist = await Playlist.findById(playlistId)
-
-    if(!playlist) {
-        throw new ApiError(404, "requested playlist for updation does not exists")
-    }
-    else if(playlist.owner != req.user._id) {
-        throw new ApiError(403, "Requested playlist for updation does not belong to user")
-    }
-
+    
     playlist.videos = [...playlist.videos, ...fetchedVideos];
 
-    await playlist.save({validateBeforeSave : false})
+    await playlist.save()
 
     return res
     .status(200)
@@ -315,7 +296,7 @@ const removeVideo = async(req, res) => {
     if(!playlist){
         throw new ApiError(404, "Requested playlist for updation does not exist or has already been deleted")
     }
-    else if(playlist.owner != req.user._id) {
+    else if(!playlist.owner.equals(req.user._id)) {
         throw new ApiError(403, "The requested playlist for updation does not belong to the requested user")
     }
 
@@ -346,20 +327,20 @@ const makePlaylistPrivate = async(req, res) => {
     if(!playlist){
         throw new ApiError(404, "Requested playlist for updation does not exist or has already been deleted")
     }
-    else if(playlist.owner != req.user._id) {
+    else if(!playlist.owner.equals(req.user._id)) {
         throw new ApiError(403, "The requested playlist for updation does not belong to the requested user")
     }
     
-    if(!playlist.ispublic) {
+    if(!playlist.isPublic) {
         throw new ApiError(400, "The requested playlist for updation is already private")
     }
 
-    playlist.ispublic = 0;
+    playlist.isPublic = 0;
     await playlist.save({validateBeforeSave : true}); 
 
     return res
     .status(200)
-    .json(new ApiError(
+    .json(new ApiResponse(
         200,
         playlist,
         "Playlist made private successfully"
@@ -376,20 +357,20 @@ const makePlaylistPublic = async(req, res) => {
     if(!playlist){
         throw new ApiError(404, "Requested playlist for updation does not exist or has already been deleted")
     }
-    else if(playlist.owner != req.user._id) {
+    else if(!playlist.owner.equals(req.user._id)) {
         throw new ApiError(403, "The requested playlist for updation does not belong to the requested user")
     }
     
-    if(playlist.ispublic) {
+    if(playlist.isPublic) {
         throw new ApiError(400, "The requested playlist for updation is already public")
     }
 
-    playlist.ispublic = 1;
+    playlist.isPublic = 1;
     await playlist.save({validateBeforeSave : true}); 
 
     return res
     .status(200)
-    .json(new ApiError(
+    .json(new ApiResponse(
         200,
         playlist,
         "Playlist made public successfully"
@@ -400,9 +381,8 @@ export {
     createPlaylist,
     getPlaylist,
     getAllPlaylists,
-    updatePlaylistTitle,
+    updatePlaylist,
     deletePlaylist,
-    updatePlaylistDescription,
     addVideos,
     removeVideo,
     makePlaylistPrivate,
