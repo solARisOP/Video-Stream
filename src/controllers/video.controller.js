@@ -293,8 +293,8 @@ const unlikeVideo = async (req, res) => {
 }
 
 const updateVideo = async (req, res) => {
-    const { videoId } = req.params
-    const { field, content } = req.body
+    const { videoId, field } = req.params
+    const { content } = req.body
     const user = req.user
 
     if (!videoId) {

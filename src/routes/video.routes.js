@@ -21,7 +21,7 @@ router.route('/like-Video/:videoId').post(verifyJWT, likeVideo)
 
 router.route('/unlike-Video/:videoId').delete(verifyJWT, unlikeVideo)
 
-router.route('/update-video/:videoId').patch(verifyJWT, updateVideo)
+router.route('/update-video/:videoId/:field').patch(verifyJWT, updateVideo)
 
 router.route('/private-Video/:videoId').patch(verifyJWT, makeVideoPrivate)
 

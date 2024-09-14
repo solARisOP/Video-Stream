@@ -21,7 +21,7 @@ router.route('/get-playlist').get(checkUser, getPlaylist)
 
 router.route('/get-all-playlists/:channelId').get(checkUser, getAllPlaylists)
 
-router.route('/update-playlist/:playlistId').patch(verifyJWT, updatePlaylist)
+router.route('/update-playlist/:playlistId/:field').patch(verifyJWT, updatePlaylist)
 
 router.route('/delete-playlist/:playlistId').delete(verifyJWT, deletePlaylist)
 

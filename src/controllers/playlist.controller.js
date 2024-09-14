@@ -163,8 +163,8 @@ const getAllPlaylists = async(req, res) => {
 }
 
 const updatePlaylist = async(req, res) => {
-    const {playlistId} = req.params
-    const {field, content} = req.body
+    const { playlistId, field } = req.params
+    const { content } = req.body
 
     if(field != 'name' && field != 'description') {
         throw new ApiError(400, "invalid field name")
