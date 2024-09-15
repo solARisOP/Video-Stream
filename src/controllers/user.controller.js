@@ -4,6 +4,10 @@ import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { removeFromCloudinary, uploadonCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken"
+import {
+    getgoogleOAuthTokens, 
+    getGoogleUser
+} from "../utils/getGoogleAccess&RefreshTokens.js"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -16,6 +20,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
 
         return { accessToken, refreshToken }
     } catch (error) {
+        console.log(error);
+        
         throw new ApiError(500, "Something went wrong while generating refresh and access token")
     }
 }
@@ -75,6 +81,35 @@ const registerUser = async (req, res) => {
     )
 }
 
+const googleUser = async (req, res) => {
+    const {code} = req.query
+
+    const {id_token, access_token} = await getgoogleOAuthTokens(code)
+    const { name, email, picture } = await getGoogleUser(id_token, access_token)
+
+    var user = await User.findOne({email : email})
+    if(!user) {
+        const username = name.trim().replace(' ', '_') + '_' + Math.random().toString(36).substring(2, 10);
+        const password = (+new Date * Math.random()).toString(36).substring(0,12)  
+        user = await User.create({username, email : email, fullname : name, avatar : picture, password})
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
+    }
+
+    res
+    .cookie("accessToken", accessToken, {...options, maxAge: 24 * 60 * 60 * 1000})
+    .cookie("refreshToken", refreshToken, {...options, maxAge: 10 * 24 * 60 * 60 * 1000})
+
+    return res
+    .redirect('http://localhost:5173/user')
+}
+
 const loginUser = async (req, res) => {
     const { email, username, password } = req.body
     if (!username && !email) {
@@ -101,13 +136,14 @@ const loginUser = async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true
+        secure: true,
+        sameSite: 'None',
     }
 
     return res
         .status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, {...options, maxAge: 24 * 60 * 60 * 1000})
+        .cookie("refreshToken", refreshToken, {...options, maxAge: 10 * 24 * 60 * 60 * 1000})
         .json(new ApiResponse(
             200,
             {
@@ -392,5 +428,6 @@ export {
     getCurrentUser,
     updateUser,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
+    googleUser
 }

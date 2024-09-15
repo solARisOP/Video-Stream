@@ -8,7 +8,8 @@ import {
     logoutUser, 
     refreshAccessToken, 
     registerUser, 
-    updateUser
+    updateUser,
+    googleUser
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -34,7 +35,7 @@ router.use("/verify", verifyEmail)
 
 router.route("/login").post(loginUser)
 
-router.route("/google-auth").post()
+router.route("/google-auth").get(googleUser)
 
 router.route("/logout").post(verifyJWT, logoutUser)
 

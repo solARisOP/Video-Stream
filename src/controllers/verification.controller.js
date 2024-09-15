@@ -41,6 +41,4 @@ const EmailVerification = async(req, res) => {
     ))
 }
 
-export {
-    EmailVerification
-}
+export { EmailVerification }
